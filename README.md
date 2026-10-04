@@ -32,6 +32,21 @@ GET /api/v1/integrations?status=&category=&q=
 
 See the [Integrations API v1 contract](contracts/integrations.v1.md).
 
+## Deploy
+
+This folder is an independent deploy unit described by [`service.yaml`](service.yaml).
+Build from the repository root; the image contains only this service and the
+files listed in `data.reads`:
+
+```bash
+docker build -f services/integrations-api/Dockerfile -t solo-empire/integrations-api .
+```
+
+The image sets `*_ENV=production` and binds `0.0.0.0`, so it refuses to start
+without its `*_TOKEN` secret. `deploy.target` stays `unassigned` until a target
+is chosen. `task services:check` reports drift from the
+[decentralized services spec](../../docs/superpowers/specs/2026-10-04-decentralized-services-and-storage-design.md).
+
 ## Test
 
 ```bash

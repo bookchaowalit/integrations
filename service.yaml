@@ -1,0 +1,15 @@
+schema: solo-empire.service.v1
+name: integrations-api
+owner_module: integrations
+port: 3480
+env_prefix: INTEGRATIONS_API_
+contract: contracts/integrations.v1.md
+health: /health
+data:
+  owner: solo-empire-external-app-registry
+  reads: [infra/api/external_app_registry.ts, integrations/]
+  writes: []
+secrets: []
+deploy:
+  target: unassigned
+  image: Dockerfile
