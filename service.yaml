@@ -5,6 +5,7 @@ port: 3480
 env_prefix: INTEGRATIONS_API_
 contract: contracts/integrations.v1.md
 health: /health
+dependencies: [packages/service-auth]
 data:
   owner: solo-empire-external-app-registry
   reads: [infra/api/external_app_registry.ts, integrations/]

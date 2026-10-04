@@ -12,17 +12,16 @@ Run locally from the repository root with::
     python3 services/integrations-api/server.py
 
 Set ``INTEGRATIONS_API_REGISTRY_PATH`` to use another registry file and
-``INTEGRATIONS_API_TOKEN`` before exposing the service outside local development.
+the ``INTEGRATIONS_API_AUTH_*`` policy before exposing the service outside local development.
 """
 
 from __future__ import annotations
 
 import argparse
-import ipaddress
+import hashlib
 import json
 import os
 import re
-import secrets
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -32,6 +31,8 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, Mapping
 from urllib.parse import parse_qs, urlsplit
+
+from service_auth import AuthError, AuthPolicy, check_read_auth, is_loopback, readiness
 
 
 SERVICE_NAME = "solo-empire-integrations-api"
@@ -159,11 +160,13 @@ class RegistryStore:
         with self._lock:
             mtime = self.path.stat().st_mtime
             if self._snapshot is None or mtime != self._mtime:
-                records = parse_registry(self.path.read_text(encoding="utf-8"))
+                source_text = self.path.read_text(encoding="utf-8")
+                records = parse_registry(source_text)
                 for record in records:
                     record["guide"] = guide_path(self.root, record["id"])
                 metadata = {
                     "path": "infra/api/external_app_registry.ts",
+                    "revision": hashlib.sha256(source_text.encode("utf-8")).hexdigest(),
                     "modified_at": datetime.fromtimestamp(mtime, timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
                     "status_definitions": STATUS_DEFINITIONS,
                 }
@@ -182,22 +185,25 @@ class IntegrationsApi:
         token: str | None = None,
         environment: str | None = None,
         allowed_origins: tuple[str, ...] | None = None,
+        auth_policy: AuthPolicy | None = None,
         root: Path | None = None,
     ) -> None:
         self.store = RegistryStore(registry_path, root)
         self.token = token if token is not None else os.environ.get("INTEGRATIONS_API_TOKEN", "").strip()
         self.environment = (environment or os.environ.get("INTEGRATIONS_API_ENV", "development")).strip().lower()
+        self.auth_policy = auth_policy or AuthPolicy.from_env("INTEGRATIONS_API_", "integrations-api", "integrations:read")
         configured_origins = os.environ.get("INTEGRATIONS_API_CORS_ORIGINS", "http://127.0.0.1:3600,http://localhost:3600")
         self.allowed_origins = allowed_origins or tuple(item.strip() for item in configured_origins.split(",") if item.strip())
 
     def _check_read_auth(self, headers: Mapping[str, str]) -> None:
-        if self.environment == "production" and not self.token:
-            raise ApiError(503, "Integration reads are disabled until INTEGRATIONS_API_TOKEN is configured", code="reads_disabled")
-        if not self.token:
-            return
-        scheme, _, value = headers.get("authorization", "").partition(" ")
-        if scheme.lower() != "bearer" or not secrets.compare_digest(value, self.token):
-            raise ApiError(401, "valid bearer authorization is required", code="unauthorized")
+        try:
+            check_read_auth(self.auth_policy, headers, environment=self.environment, token=self.token)
+        except AuthError as exc:
+            raise ApiError(exc.status, exc.message, code=exc.code) from None
+
+    def _ready(self) -> Response:
+        status, payload = readiness(self.auth_policy, self.environment, self.store)
+        return Response(status, payload)
 
     def _overview(self, query: Mapping[str, list[str]]) -> Response:
         status = query_value(query, "status", MAX_FILTER_LENGTH)
@@ -243,6 +249,8 @@ class IntegrationsApi:
         try:
             if method == "OPTIONS":
                 return Response(204, {})
+            if method == "GET" and path == "/ready":
+                return self._ready()
             if method == "GET" and path == "/health":
                 return Response(200, {"status": "ok", "service": SERVICE_NAME, "schema_version": SCHEMA_VERSION, "timestamp": utc_now()})
             if path == "/api/v1/integrations":
@@ -297,27 +305,20 @@ class IntegrationsRequestHandler(BaseHTTPRequestHandler):
     do_DELETE = _dispatch
 
 
-def is_loopback(host: str) -> bool:
-    if host == "localhost":
-        return True
-    try:
-        return ipaddress.ip_address(host).is_loopback
-    except ValueError:
-        return False
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="Solo Empire external app registry API")
     parser.add_argument("--host", default=os.environ.get("INTEGRATIONS_API_HOST", "127.0.0.1"))
-    parser.add_argument("--port", type=int, default=int(os.environ.get("INTEGRATIONS_API_PORT", "3480")))
+    parser.add_argument("--port", type=int, default=int(os.environ.get("INTEGRATIONS_API_PORT", os.environ.get("PORT", "3480"))))
     parser.add_argument("--registry", default=None, help="registry TS file; defaults to INTEGRATIONS_API_REGISTRY_PATH or infra/api/external_app_registry.ts")
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535")
     if args.registry:
         IntegrationsRequestHandler.api = IntegrationsApi(args.registry)
-    if not is_loopback(args.host) and not IntegrationsRequestHandler.api.token:
-        parser.error("a non-loopback --host requires INTEGRATIONS_API_TOKEN")
+    if not is_loopback(args.host):
+        IntegrationsRequestHandler.api.environment = "production"
+        if not IntegrationsRequestHandler.api.auth_policy.ready:
+            parser.error("a non-loopback --host requires valid INTEGRATIONS_API_AUTH_* configuration")
     server = ThreadingHTTPServer((args.host, args.port), IntegrationsRequestHandler)
     print(f"{SERVICE_NAME} running on http://{args.host}:{args.port}", flush=True)
     try:
