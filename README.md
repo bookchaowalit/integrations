@@ -2,10 +2,13 @@
 
 Moved out of solo-empire `services/integrations-api` on 2026-10-11 with its history
 (subtree split). Owns the external app registry (`data/external_app_registry.ts`, moved
-from `infra/api/external_app_registry.ts`) and the read-only `/api/v1/integrations` API.
-**Source of truth:** solo-empire `integrations/external_app_registry.ts` (Tools Hub and the
-building-block guard read it there); `data/external_app_registry.ts` here is the deployed snapshot,
-refreshed by copying that file.
+from `infra/api/` and then from solo-empire `integrations/`) and the read-only `/api/v1/integrations` API.
+**Source of truth: this repository.** `data/external_app_registry.ts` is the single canonical copy;
+edit it here (keep each record on one line). solo-empire reads it from the sibling checkout
+(Tools Hub `tools_hub.py`, building-block guard `building_block_services.py`) via the
+`bookchaowalit/solo-integrations:data/external_app_registry.ts` reference; set
+`SOLO_INTEGRATIONS_ROOT` to override the default Book Dev path. Both skip with a warning when the
+checkout is absent (CI). After editing, run `task tools-hub:write` in solo-empire to refresh the hub counts.
 `vendor/service-auth` is a vendored copy of `bookchaowalit/solo-service-auth`.
 
 Test: `PYTHONPATH=vendor/service-auth python3 -m unittest discover -s tests -v`
@@ -17,7 +20,7 @@ Test: `PYTHONPATH=vendor/service-auth python3 -m unittest discover -s tests -v`
 `integrations-api` is a small read-only backend that turns
 [`data/external_app_registry.ts`](data/external_app_registry.ts)
 into JSON for the `/integrations` module of `solo-web` (`bookchaowalit/solo-web`).
-The TypeScript registry (a snapshot of solo-empire `integrations/external_app_registry.ts`); the service parses its
+The TypeScript registry (canonical in this repository); the service parses its
 one-record-per-line literal, adds the matching `integrations/<id>/README.md`
 guide when one exists, and reloads when the file changes.
 
@@ -51,8 +54,8 @@ See the [Integrations API v1 contract](contracts/integrations.v1.md).
 This folder is an independent deploy unit described by [`service.yaml`](service.yaml).
 The repository root is the Docker build context; it contains the service, the
 vendored `service-auth` dependency (`vendor/service-auth`) and the registry
-(`data/external_app_registry.ts`). The `integrations/<app>/README.md` guides are a snapshot
-copied from solo-empire `integrations/` (only the per-app guides).
+(`data/external_app_registry.ts`, canonical). The `integrations/<app>/README.md` guides are a snapshot
+copied from solo-empire `integrations/` (only the per-app guides; the guides stay owned by solo-empire).
 
 ```bash
 docker build -t solo-integrations .
