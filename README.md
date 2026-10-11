@@ -2,7 +2,7 @@
 
 `integrations-api` is a small read-only backend that turns
 [`infra/api/external_app_registry.ts`](../../infra/api/external_app_registry.ts)
-into JSON for the `/integrations` module of [`apps/solo-web`](../../apps/solo-web/).
+into JSON for the `/integrations` module of [`solo-web`](../../projects/product/engineering/book-dev/github/bookchaowalit/private/solo-web/).
 The TypeScript registry stays canonical; the service parses its
 one-record-per-line literal, adds the matching `integrations/<id>/README.md`
 guide when one exists, and reloads when the file changes.
