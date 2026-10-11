@@ -3,6 +3,9 @@
 Moved out of solo-empire `services/integrations-api` on 2026-10-11 with its history
 (subtree split). Owns the external app registry (`data/external_app_registry.ts`, moved
 from `infra/api/external_app_registry.ts`) and the read-only `/api/v1/integrations` API.
+**Source of truth:** solo-empire `integrations/external_app_registry.ts` (Tools Hub and the
+building-block guard read it there); `data/external_app_registry.ts` here is the deployed snapshot,
+refreshed by copying that file.
 `vendor/service-auth` is a vendored copy of `bookchaowalit/solo-service-auth`.
 
 Test: `PYTHONPATH=vendor/service-auth python3 -m unittest discover -s tests -v`
@@ -14,7 +17,7 @@ Test: `PYTHONPATH=vendor/service-auth python3 -m unittest discover -s tests -v`
 `integrations-api` is a small read-only backend that turns
 [`data/external_app_registry.ts`](data/external_app_registry.ts)
 into JSON for the `/integrations` module of `solo-web` (`bookchaowalit/solo-web`).
-The TypeScript registry in this repo is canonical now (it was `infra/api/external_app_registry.ts` in solo-empire, retired 2026-10-11); the service parses its
+The TypeScript registry (a snapshot of solo-empire `integrations/external_app_registry.ts`); the service parses its
 one-record-per-line literal, adds the matching `integrations/<id>/README.md`
 guide when one exists, and reloads when the file changes.
 
