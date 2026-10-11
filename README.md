@@ -1,9 +1,20 @@
+# solo-integrations
+
+Moved out of solo-empire `services/integrations-api` on 2026-10-11 with its history
+(subtree split). Owns the external app registry (`data/external_app_registry.ts`, moved
+from `infra/api/external_app_registry.ts`) and the read-only `/api/v1/integrations` API.
+`vendor/service-auth` is a vendored copy of `bookchaowalit/solo-service-auth`.
+
+Test: `PYTHONPATH=vendor/service-auth python3 -m unittest discover -s tests -v`
+
+---
+
 # Solo Empire Integrations API
 
 `integrations-api` is a small read-only backend that turns
-[`infra/api/external_app_registry.ts`](../../infra/api/external_app_registry.ts)
-into JSON for the `/integrations` module of [`solo-web`](../../projects/product/engineering/book-dev/github/bookchaowalit/private/solo-web/).
-The TypeScript registry stays canonical; the service parses its
+[`data/external_app_registry.ts`](data/external_app_registry.ts)
+into JSON for the `/integrations` module of `solo-web` (`bookchaowalit/solo-web`).
+The TypeScript registry in this repo is canonical now (it was `infra/api/external_app_registry.ts` in solo-empire, retired 2026-10-11); the service parses its
 one-record-per-line literal, adds the matching `integrations/<id>/README.md`
 guide when one exists, and reloads when the file changes.
 
@@ -13,11 +24,11 @@ partial list. Keep each record on one line when editing the registry.
 
 ## Run
 
-From the repository root:
+From this repository root:
 
 ```bash
-python3 -m pip install ./packages/service-auth ./services/integrations-api
-python3 services/integrations-api/server.py
+python3 -m pip install ./vendor/service-auth .
+python3 server.py
 ```
 
 The default listener is `http://127.0.0.1:3480`. Configure
@@ -35,26 +46,22 @@ See the [Integrations API v1 contract](contracts/integrations.v1.md).
 ## Deploy
 
 This folder is an independent deploy unit described by [`service.yaml`](service.yaml).
-Set `RELEASE_CONTEXT` to this service's isolated exported context outside the
-source checkout. The owner must review its release manifest and metadata
-projection before uploading the context or image. The context contains this
-service, the declared reusable `service-auth` dependency, the canonical registry,
-and integration guide pointers. Building from the raw root checkout bypasses
-the integrations projection and copies the original integration files.
+The repository root is the Docker build context; it contains the service, the
+vendored `service-auth` dependency (`vendor/service-auth`) and the registry
+(`data/external_app_registry.ts`). The `integrations/<app>/README.md` guides are a snapshot
+copied from solo-empire `integrations/` (only the per-app guides).
 
 ```bash
-: "${RELEASE_CONTEXT:?Set RELEASE_CONTEXT to the reviewed integrations-api export}"
-docker build -f "$RELEASE_CONTEXT/services/integrations-api/Dockerfile" -t solo-empire/integrations-api "$RELEASE_CONTEXT"
+docker build -t solo-integrations .
 ```
 
 The image enforces scoped JWT authorization and binds `0.0.0.0`.
-`deploy.target` stays `unassigned` until the parent deployment configuration selects a target. `task services:check` reports drift from the
-[decentralized services spec](../../docs/superpowers/specs/2026-10-04-decentralized-services-and-storage-design.md).
+`deploy.target` stays `unassigned` until the parent deployment configuration selects a target. See the decentralized services spec in solo-empire (`docs/superpowers/specs/2026-10-04-decentralized-services-and-storage-design.md`).
 
 ## Test
 
 ```bash
-python3 services/integrations-api/tests/test_server.py
+PYTHONPATH=vendor/service-auth python3 -m unittest discover -s tests -v
 ```
 
 ## Scoped authorization and readiness

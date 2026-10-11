@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Read-only projection of the Solo Empire external app registry.
 
-``infra/api/external_app_registry.ts`` stays the canonical source that the
+``data/external_app_registry.ts`` stays the canonical source that the
 dashboard, humans, and AI agents use; this service parses its one-record-per-
 line literal into JSON for the Solo Web ``/integrations`` module.  Parsing is
 strict: if any record line cannot be read the service answers 503 instead of
@@ -9,7 +9,7 @@ returning a partial list.  It never reads credentials or calls a provider.
 
 Run locally from the repository root with::
 
-    python3 services/integrations-api/server.py
+    python3 server.py
 
 Set ``INTEGRATIONS_API_REGISTRY_PATH`` to use another registry file and
 the ``INTEGRATIONS_API_AUTH_*`` policy before exposing the service outside local development.
@@ -73,12 +73,12 @@ def utc_now() -> str:
 
 
 def repository_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parent
 
 
 def default_registry_path() -> Path:
     configured = os.environ.get("INTEGRATIONS_API_REGISTRY_PATH")
-    return Path(configured).expanduser() if configured else repository_root() / "infra" / "api" / "external_app_registry.ts"
+    return Path(configured).expanduser() if configured else repository_root() / "data" / "external_app_registry.ts"
 
 
 def query_value(query: Mapping[str, list[str]], field: str, max_length: int) -> str:
@@ -165,7 +165,7 @@ class RegistryStore:
                 for record in records:
                     record["guide"] = guide_path(self.root, record["id"])
                 metadata = {
-                    "path": "infra/api/external_app_registry.ts",
+                    "path": "data/external_app_registry.ts",
                     "revision": hashlib.sha256(source_text.encode("utf-8")).hexdigest(),
                     "modified_at": datetime.fromtimestamp(mtime, timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
                     "status_definitions": STATUS_DEFINITIONS,
@@ -309,7 +309,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Solo Empire external app registry API")
     parser.add_argument("--host", default=os.environ.get("INTEGRATIONS_API_HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("INTEGRATIONS_API_PORT", os.environ.get("PORT", "3480"))))
-    parser.add_argument("--registry", default=None, help="registry TS file; defaults to INTEGRATIONS_API_REGISTRY_PATH or infra/api/external_app_registry.ts")
+    parser.add_argument("--registry", default=None, help="registry TS file; defaults to INTEGRATIONS_API_REGISTRY_PATH or data/external_app_registry.ts")
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535")

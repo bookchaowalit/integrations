@@ -19,7 +19,7 @@ from service_auth import AuthPolicy
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-REPO = ROOT.parents[1]
+REPO = ROOT
 sys.path.insert(0, str(ROOT))
 from server import IntegrationsApi, parse_registry  # noqa: E402
 
@@ -152,7 +152,7 @@ class IntegrationsApiTest(unittest.TestCase):
         self.assertEqual(IntegrationsApi(self.path, token="", environment="production").handle("GET", "/api/v1/integrations").status, 503)
 
     def test_real_registry_parses_every_record(self) -> None:
-        real = REPO / "infra" / "api" / "external_app_registry.ts"
+        real = REPO / "data" / "external_app_registry.ts"
         records = parse_registry(real.read_text(encoding="utf-8"))
         self.assertEqual(len(records), real.read_text(encoding="utf-8").count("{ id: '"))
 
