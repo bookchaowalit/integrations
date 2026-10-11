@@ -11,6 +11,8 @@ edit it here (keep each record on one line). solo-empire reads it from the sibli
 checkout is absent (CI). After editing, run `task tools-hub:write` in solo-empire to refresh the hub counts.
 `vendor/service-auth` is a vendored copy of `bookchaowalit/solo-service-auth`.
 
+Docs: `docs/OVERVIEW.md` (integration overview), `docs/INTEGRATION-GUIDE.md`, `docs/EXTERNAL-APP-REGISTRY.md`, `docs/landing-page-integration.md`; per-provider guides live in `integrations/<id>/README.md`; `integrations/google/` also holds the Calendar OAuth setup script (`setup_calendar.py`).
+
 Test: `PYTHONPATH=vendor/service-auth python3 -m unittest discover -s tests -v`
 
 ---

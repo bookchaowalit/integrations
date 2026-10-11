@@ -4,7 +4,7 @@
 
 Read-only projection of [`data/external_app_registry.ts`](../data/external_app_registry.ts) (snapshot of solo-empire `infra/api/external_app_registry.ts`, retired 2026-10-11).
 A listed app is not proof of a working connector; see the registry's
-[status meanings](../../../integrations/EXTERNAL-APP-REGISTRY.md).
+[status meanings](../docs/EXTERNAL-APP-REGISTRY.md).
 
 ## Routes
 
