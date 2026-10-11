@@ -1,0 +1,8 @@
+system_id: bookchaowalit/private/solo-integrations
+prefix: CARD
+brand: "INTEGRATIONS"
+subtitle: "ทะเบียนแอป external (source of truth) และ read-only API `/api/v1/integrations`"
+footer: "solo-integrations — Product Card"
+color: "#2b2d42"
+audience: internal
+tier: L0
