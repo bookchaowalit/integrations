@@ -70,7 +70,7 @@ def test_unknown_arguments_are_rejected_before_any_http_call():
     fake = Fake()
     srv = server(fake)
     for name in sorted(READS | WRITES):
-        with pytest.raises(Exception, match="invalid_arguments: surprise"):
+        with pytest.raises(Exception, match="invalid_arguments"):
             call(srv, name, {**ARGS.get(name, {}), "surprise": 1})
     assert fake.requests == []
 
@@ -183,7 +183,7 @@ def test_minted_token_is_accepted_by_the_backends_own_verifier(env, keys):
     identity = policy.authenticate({"authorization": f"Bearer {token}"})
     assert (identity.subject, identity.tenant_id, identity.scope) == (SUB, "owner", mod.SCOPE)
     claims = jwt.decode(token, options={"verify_signature": False})
-    assert claims["aud"] == mod.AUDIENCE and 0 < claims["exp"] - claims["iat"] <= 120
+    assert claims["aud"] == mod.AUDIENCE and 0 < claims["exp"] - claims["iat"] <= 60
     assert mod.mint(env) != token  # a fresh jti every time
 
 
@@ -253,3 +253,33 @@ def test_url_must_be_https_or_loopback(tmp_path):
             mod.api_url(API_KEY, {API_KEY: bad})
     with pytest.raises(mod.ConfigError):
         mod.api_url(API_KEY, {"EMPIRE_CLIENT_CONFIG": str(tmp_path / "none")})
+
+
+def _chain(exc: BaseException):
+    seen = []
+    while exc is not None and exc not in seen:
+        seen.append(exc)
+        yield exc
+        exc = exc.__cause__ or exc.__context__
+
+
+def test_validation_errors_are_fixed_and_name_no_argument_or_value():
+    srv = server(Fake())
+    rejected = {}
+    for name in sorted(READS | WRITES):
+        tool = next(t for t in asyncio.run(srv.list_tools()) if t.name == name)
+        attempts = [{"UNTRUSTED_MARKER": "VALUE_MARKER"}, {**ARGS.get(name, {}), "UNTRUSTED_MARKER": 1}]
+        attempts += [{**ARGS.get(name, {}), field: {"k": "VALUE_MARKER"}} for field in tool.input_schema["properties"]]
+        for args in attempts:
+            try:
+                call(srv, name, args)
+            except Exception as exc:  # noqa: BLE001
+                rejected[name] = rejected.get(name, 0) + 1
+                assert str(exc).endswith("invalid_arguments") and "MARKER" not in str(exc)
+                assert exc.__cause__ is None and exc.__context__ is None
+                for link in _chain(exc):
+                    assert "MARKER" not in str(link) and "MARKER" not in repr(link)
+    assert set(rejected) == READS | WRITES
+    with pytest.raises(Exception) as caught:
+        call(srv, "x.UNTRUSTED_MARKER", {"a": "VALUE_MARKER"})
+    assert "MARKER" not in str(caught.value) + repr(caught.value)
