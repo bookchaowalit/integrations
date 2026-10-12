@@ -1,4 +1,4 @@
-# solo-integrations
+# integrations
 
 Moved out of solo-empire `services/integrations-api` on 2026-10-11 with its history
 (subtree split). Owns the external app registry (`data/external_app_registry.ts`, moved
@@ -6,10 +6,10 @@ from `infra/api/` and then from solo-empire `integrations/`) and the read-only `
 **Source of truth: this repository.** `data/external_app_registry.ts` is the single canonical copy;
 edit it here (keep each record on one line). solo-empire reads it from the sibling checkout
 (Tools Hub `tools_hub.py`, building-block guard `building_block_services.py`) via the
-`bookchaowalit/solo-integrations:data/external_app_registry.ts` reference; set
+`bookchaowalit/integrations:data/external_app_registry.ts` reference; set
 `SOLO_INTEGRATIONS_ROOT` to override the default Book Dev path. Both skip with a warning when the
 checkout is absent (CI). After editing, run `task tools-hub:write` in solo-empire to refresh the hub counts.
-`vendor/service-auth` is a vendored copy of `bookchaowalit/solo-service-auth`.
+`vendor/service-auth` is a vendored copy of `bookchaowalit/service-auth`.
 
 Docs: `docs/OVERVIEW.md` (integration overview), `docs/INTEGRATION-GUIDE.md`, `docs/EXTERNAL-APP-REGISTRY.md`, `docs/landing-page-integration.md`; per-provider guides live in `integrations/<id>/README.md`; `integrations/google/` also holds the Calendar OAuth setup script (`setup_calendar.py`).
 
@@ -21,7 +21,7 @@ Test: `PYTHONPATH=vendor/service-auth python3 -m unittest discover -s tests -v`
 
 `integrations-api` is a small read-only backend that turns
 [`data/external_app_registry.ts`](data/external_app_registry.ts)
-into JSON for the `/integrations` module of `solo-web` (`bookchaowalit/solo-web`).
+into JSON for the `/integrations` module of `solo-web` (`bookchaowalit/owner-web`).
 The TypeScript registry (canonical in this repository); the service parses its
 one-record-per-line literal, adds the matching `integrations/<id>/README.md`
 guide when one exists, and reloads when the file changes.

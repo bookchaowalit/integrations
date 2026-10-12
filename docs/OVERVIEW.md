@@ -101,7 +101,7 @@ All data is stored in your local SQLite database and can be queried through the 
 - **What it does**: Receives LINE events, persists them idempotently in
   `webhook_log` with `processed=0`, and exposes them for the central router
 - **Outbound messaging**: Not implemented; no messages are sent by this route
-- **Account metadata**: [`accounts/line/business/solo-empire/`](https://github.com/bookchaowalit/solo-accounts/tree/main/accounts/line/business/solo-empire)
+- **Account metadata**: [`accounts/line/business/solo-empire/`](https://github.com/bookchaowalit/accounts/tree/main/accounts/line/business/solo-empire)
 - **Integration guide**: [`line/README.md`](../integrations/line/README.md)
 - **Implementation**: `POST /api/webhook/line` verifies `x-line-signature`
   before parsing and does not require the internal Bearer token; the
@@ -185,7 +185,7 @@ All data is stored in your local SQLite database and can be queried through the 
 
 ### 🔄 Health APIs (Coming Soon)
 - **Status**: Not implemented yet
-- **What it will do**: Sync health metrics to the `solo-health` cell
+- **What it will do**: Sync health metrics to the `health-metrics` cell
 - **Services**: Google Fit, Apple Health, Fitbit
 
 ### 🔄 Other Finance APIs (Coming Soon)
@@ -337,7 +337,7 @@ Add to your crontab (`crontab -e`):
 0 * * * * /usr/bin/python3 /path/to/operating-hub/infra/scripts/sync/sync_all_integrations.py --all >> /tmp/integration_sync.log 2>&1
 
 # Sync calendar every 30 minutes
-*/30 * * * * /usr/bin/python3 /path/to/solo-integrations/integrations/google/calendar_sync.py --sync >> /tmp/calendar_sync.log 2>&1
+*/30 * * * * /usr/bin/python3 /path/to/integrations/integrations/google/calendar_sync.py --sync >> /tmp/calendar_sync.log 2>&1
 ```
 
 ### Using systemd (Linux)

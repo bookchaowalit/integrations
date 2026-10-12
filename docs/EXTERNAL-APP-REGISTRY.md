@@ -8,16 +8,16 @@ status: current
 # External App Registry
 
 The machine-readable registry lives in
-`data/external_app_registry.ts` in the `bookchaowalit/solo-integrations` repository
+`data/external_app_registry.ts` in the `bookchaowalit/integrations` repository
 (canonical owner since 2026-10-11; moved from `infra/api/` and then from this folder) and
 currently tracks 100+ external apps with official API documentation links. The Solo Web
-`/integrations` page reads it through the solo-integrations API. Tools Hub and the
+`/integrations` page reads it through the integrations API. Tools Hub and the
 building-block catalog read it from the sibling checkout (`SOLO_INTEGRATIONS_ROOT`
 overrides the default Book Dev path; both skip with a warning when it is absent, e.g. in
 CI). Keep each record on one line so the projection can parse it.
 
 > The REST routes described below (`GET /api/integrations...`) were served by the retired
-> local `infra/api` server (archived in `bookchaowalit/solo-platform-api`). They are kept as
+> local `infra/api` server (archived in `bookchaowalit/platform-api-archive`). They are kept as
 > the historical per-provider read contract, not as a running endpoint.
 
 ## Status meanings
