@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "integrations": {
+      "command": ".venv/bin/integrations-mcp",
+      "args": []
+    }
+  }
+}

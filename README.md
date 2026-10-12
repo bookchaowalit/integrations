@@ -106,3 +106,32 @@ freshness or a live deployment.
 The listener accepts PaaS `PORT`; explicit `INTEGRATIONS_API_PORT` or `--port`
 takes precedence. Package installation is required; no sibling source-path
 injection is used at runtime.
+
+## MCP server (`integrations-mcp`)
+
+`integrations_mcp.py` is this service's MCP server (stdio). It is read-only: `integrations.list` (status, category, text). Every tool is one HTTP call to the
+deployed or local API; there is no file or database access, no tool takes an identity argument (actor, workspace,
+tenant, token, ...), unknown arguments are rejected before any HTTP call, and errors are a fixed message from the HTTP
+status (for example `403: forbidden`), never upstream text.
+
+**Auth (backend auth is unchanged).** The API accepts only a 120-second RS256 service JWT from Solo Web
+(`aud=integrations-api`, `scope=integrations:read`, `tenant_id=owner`, allowlisted owner `sub`). For local use the MCP mints that same
+token itself, per call, as the Solo Web BFF does: it reads Solo Web's signing key and the owner subject from files
+(never printed or returned), signs a 60-second token fixed to this service's audience and scope, and sends it as the
+bearer. No tool argument can change the subject, audience or scope.
+
+| Variable | Meaning |
+|---|---|
+| `EMPIRE_INTEGRATIONS_API` | API base URL (env, else `~/.config/empire-platform/client.env`); https, http only on loopback |
+| `SOLO_WEB_PUBLIC_ORIGIN` | the JWT issuer: Solo Web's public https origin (not a secret) |
+| `SOLO_WEB_SERVICE_KEY_FILE` | default `~/.config/solo-web/service-private.pem`, mode 600 |
+| `SOLO_WEB_OWNER_SUBJECTS_FILE` | default `~/.config/solo-web/owner-subjects.txt`, mode 600; the first subject is used |
+| `EMPIRE_TOKEN` | optional ready service JWT; used instead of minting (the key is then not read) |
+
+Trade-off: the signing key can mint tokens for every Solo Web service, so only run this MCP as the owner on a machine
+that already holds that key. A narrower alternative, if the key must not sit beside agents, is a Solo Web owner-session
+endpoint that issues a per-service token; set `EMPIRE_TOKEN` from it and the key is never read.
+
+Run: `uv venv .venv && uv pip install ./vendor/service-auth -e ".[dev]"`, then `.venv/bin/integrations-mcp` (see `.mcp.json`).
+Tests: `.venv/bin/pytest tests/test_mcp.py` (fake HTTP transport and a throwaway key; the minted token is checked with
+the vendored `service_auth` verifier the API uses).
