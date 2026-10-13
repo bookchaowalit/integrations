@@ -1,5 +1,4 @@
-# integrations
-
+# platform-integrations-api
 Moved out of solo-empire `services/integrations-api` on 2026-10-11 with its history
 (subtree split). Owns the external app registry (`data/external_app_registry.ts`, moved
 from `infra/api/` and then from solo-empire `integrations/`) and the read-only `/api/v1/integrations` API.
