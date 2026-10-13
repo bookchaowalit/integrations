@@ -8,7 +8,7 @@ health: /health
 dependencies: [vendor/service-auth]
 data:
   owner: solo-empire-external-app-registry
-  reads: [data/external_app_registry.ts, integrations/]
+  reads: [data/external_app_registry.ts, data/platform_integrations.snapshot.json, integrations/]
   writes: []
 secrets: []
 deploy:

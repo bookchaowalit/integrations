@@ -5,9 +5,10 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 INTEGRATIONS_API_HOST=0.0.0.0 INTEGRATIONS_API_ENV=production
 WORKDIR /app
 COPY vendor/service-auth /app/vendor/service-auth
-COPY pyproject.toml server.py /app/
+COPY pyproject.toml server.py platform_inventory.py integrations_mcp.py /app/
 RUN pip install /app/vendor/service-auth /app
 COPY data/external_app_registry.ts /app/data/external_app_registry.ts
+COPY data/platform_integrations.snapshot.json /app/data/platform_integrations.snapshot.json
 COPY integrations /app/integrations
 
 RUN useradd --system --uid 10001 app

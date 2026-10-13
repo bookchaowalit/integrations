@@ -215,6 +215,13 @@ class IntegrationList(Strict):
     status: Literal["live", "mcp_only", "paused", "planned"] | None = None
 
 
+class PlatformList(Strict):
+    q: str | None = Field(default=None, max_length=80)
+    platform: str | None = Field(default=None, max_length=80, pattern=r'^[a-z0-9]+(?:-[a-z0-9]+)*$')
+    app: str | None = Field(default=None, max_length=80, pattern=r'^[a-z0-9]+(?:-[a-z0-9]+)*$')
+    route: Literal['plugin', 'connector', 'manual_mcp', 'unknown', 'unavailable', 'paused', 'needs_review'] | None = None
+
+
 def build_server(client: httpx.Client, token: Callable[[], str], *, read_only: bool = True,
                  server: StrictMCPServer | None = None) -> Toolbox:
     box = Toolbox("integrations", "Solo Empire integrations catalog (no secrets). Read-only.", client, token,
@@ -223,6 +230,10 @@ def build_server(client: httpx.Client, token: Callable[[], str], *, read_only: b
     @box.tool("integrations.list", IntegrationList, "List integrations with status summary, filtered by status, category or text.")
     def integrations_list(a: IntegrationList) -> Any:
         return box.call("GET", "/api/v1/integrations", params=query(a))
+
+    @box.tool('integrations.platforms', PlatformList, 'Read platform capabilities and explicit owner observations. Catalog entries never prove a connected account.')
+    def integrations_platforms(a: PlatformList) -> Any:
+        return box.call('GET', '/api/v1/integrations/platforms', params=query(a))
 
     return box
 

@@ -46,9 +46,36 @@ needed. A non-loopback host requires valid scoped JWT configuration and enforces
 ```text
 GET /health
 GET /api/v1/integrations?status=&category=&q=
+GET /api/v1/integrations/platforms?platform=&app=&route=&q=
 ```
 
 See the [Integrations API v1 contract](contracts/integrations.v1.md).
+
+The [platform integrations contract](contracts/platform-integrations.v1.md)
+separates catalog capabilities from installation, authentication and health.
+Public collectors/workers in `data-lake-pipelines` commit raw captures,
+Bronze and checksum manifests, then atomically publish
+`data/platform_integrations.snapshot.json` for this API. Set
+`INTEGRATIONS_API_PLATFORM_SNAPSHOT` for another publication path. The API
+performs no provider scraping. Missing or invalid publications return fixed
+503; absent capabilities stay unknown. After seven days, recommendations need
+review. Docker builds require the generated public snapshot to exist.
+
+Optional private metadata lives in `.runtime/platform-connections.json`
+(`INTEGRATIONS_API_CONNECTIONS_PATH` override), with mode 600 and owner-only
+access. It is excluded from Git and the image and never belongs in the public
+lake. Record an explicit local observation with:
+
+```bash
+python3 scripts/record_connection.py --platform codex-app --app gmail --installation installed --evidence-id owner-check-1
+```
+
+Non-unknown observations require an evidence identifier and UTC timestamp.
+The CLI atomically records metadata only; it never connects an account.
+Stale observations are labelled and excluded from current verified counts.
+Legacy `connected` is retained as an alias of `supported_boundaries`.
+MCP `integrations.platforms` accepts only platform/app/route/text filters and
+uses the same owner authorization as `integrations.list`.
 
 ## Deploy
 

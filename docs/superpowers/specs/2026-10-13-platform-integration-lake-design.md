@@ -1,0 +1,35 @@
+# Platform integration inventory and lake publication
+
+The owner requested a per-platform plugin/connector inventory and an external-data flow of collectors/workers → lakehouse → owning microservice APIs → shared frontend. Application-owned operational data remains with its owning service. This implementation extends the existing integrations API, lake pipelines and Solo Web; it does not provision storage or deploy production.
+
+## Outcome and boundaries
+
+Separate public catalog capability from private owner installation, authentication and health observations. A catalog listing never proves a connected account. Unknown and stale facts remain visible. Keep the current integrations v1 route compatible; add an owner-authorized read route and MCP tool. External captures must commit exact raw bytes, Bronze records and checksum manifests before a consumer snapshot can be published. No collector executes downloaded plugin code or MCP configurations, logs credentials, contacts authenticated providers or writes application databases.
+
+## Public contract: solo-empire.platform-integrations.v1
+
+Snapshot fields: `schema_version`, `captured_at` (UTC ISO), `platforms`, `capabilities`, `lineage`. Platform fields: `id`, `name`, `mcp_transports`, `docs_url`. Initial platforms: `codex-app`, `codex-cli`, `claude-code`, `claude-web`, `claude-desktop`. Transport declarations are explicit reference metadata, not account observations.
+
+Capability fields: `platform_id`, `app_id`, `channel` (`plugin`, `connector`, `manual_mcp`), `availability` (`available`, `unavailable`, `unknown`), `entry_id` (nullable), `endpoint_url` (nullable HTTPS), `evidence_url` (HTTPS), `captured_at`. Grain is platform/application/channel/entry. Public marketplace records map to canonical app IDs through explicit aliases; no substring guessing. Absence from a partial catalog remains unknown. Platform surface restrictions must be preserved; a desktop-only listing must not establish CLI availability.
+
+Lineage fields: `dataset=platform_integrations`, `manifest_key`, `manifest_sha256`, `raw_sha256`, `bronze_sha256`, `source_manifests` (each `source_id`, `manifest_key`, `manifest_sha256`, `raw_sha256`, `bronze_sha256`). Hashes are lowercase SHA256. Manifest keys are relative `control/manifests/` keys without traversal. A publication is created only after every referenced manifest and artifact was successfully committed. Existing publication survives any failed source, validation or ingest.
+
+Sources are administrator-owned public HTTPS URLs. Initial collectors support explicit official JSON marketplaces and public MCP reference configurations; source URLs and parser kinds are allowlisted, requests have deadlines/size limits and do not follow redirects. Source configurations define owner, permission, public classification, archival retention, daily refresh expectation and canonical app mappings. Downloaded code, commands, environment and authorization values are never executed or projected. Offline replay requires the original capture timestamp. Invalid/conflicting input is reported and cannot replace a valid snapshot.
+
+## Private operational observations
+
+Optional owner-local file `INTEGRATIONS_API_CONNECTIONS_PATH`, default `.runtime/platform-connections.json`, has `schema_version=solo-empire.integration-connections.v1` and `observations`. Each observation: `platform_id`, `app_id`, `installation` (`installed`, `not_installed`, `unknown`), `authentication` (`connected`, `disconnected`, `unknown`), `health` (`verified`, `failed`, `unknown`), `checked_at` (nullable UTC ISO), `evidence_id` (nullable bounded identifier). Non-unknown states require timestamp/evidence. Reject unknown fields, duplicates, symlinks and group/world-readable files. The file contains metadata only, never credentials; it is excluded from Git and public lake ingestion. A small owner CLI records explicit observations atomically with mode 600. No HTTP writes or authorization-scope changes are introduced.
+
+## Read API and freshness
+
+`GET /api/v1/integrations/platforms?platform=&app=&route=&q=` uses the existing owner read authorization. Snapshot path is `INTEGRATIONS_API_PLATFORM_SNAPSHOT`, default `data/platform_integrations.snapshot.json`. Missing/invalid snapshot returns a fixed 503; no raw source/path/error details. Keep existing `/health`, `/ready` and legacy route semantics compatible.
+
+Response includes `schema_version`, `generated_at`, `snapshot` (`captured_at`, `freshness`, `revision`, `lineage`), `platforms`, `summary`, `rows`. Each row: `id`, `platform_id`, `app_id`, `app_name`, `category`, `registry_status`, `channels`, `recommended_route`, `connection`. `channels` is an object keyed by `plugin`, `connector`, `manual_mcp`; each value contains `availability` and `entries` (the matching capability records). `connection` adds `freshness=unknown|fresh|stale` to the operational observation fields. Summary fields: `rows_total`, `rows_matched`, `native_available`, `manual_mcp_available`, `installed`, `authenticated`, `health_verified`, `paused`, `unknown`, `needs_review`; stale observations do not establish current authenticated/verified counts. The row grain is platform/app; unobserved channels and connection states default to unknown. Filter parameters are bounded; invalid enum/ID filters return 400.
+
+Snapshot freshness expires after seven days; future timestamps beyond five minutes are invalid. Stale snapshots remain readable but routes become `needs_review`. Fresh recommendation: available plugin, then connector, then available manual MCP; otherwise unknown. A manual MCP recommendation means an evidenced option, not proof that all native channels are absent. Paused apps produce `paused`. Routes: `plugin`, `connector`, `manual_mcp`, `unknown`, `unavailable`, `paused`, `needs_review`. Summary separates native availability from installed/authenticated/health-verified observations. Add `supported_boundaries` to the legacy summary while retaining `connected` as a compatibility alias.
+
+## Consumers and verification
+
+Solo Web fetches only the authenticated backend through its existing BFF. Add a platform selector/table, native/MCP route, installation/authentication/health states, capture freshness and evidence links. Replace misleading legacy “connected” catalog labels with capability wording. Keep API credentials and collection logic out of frontend. Add `integrations.platforms` as a read-only MCP HTTP adapter; tool arguments cannot set identity, credentials or arbitrary URLs.
+
+Verification covers unknown/stale/partial catalogs, strict metadata and URL validation, scoped authorization, byte-preserving ingestion, idempotent replay, no publication on failure, private observation permissions, API filtering, MCP argument restrictions and frontend rendering/request routing. A local complete collection→lake→publication→API journey proves the data boundary; public deployment/provider-account checks remain separate. Production deployment and schedule activation require the owner’s final approval.

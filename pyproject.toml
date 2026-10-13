@@ -10,7 +10,7 @@ requires-python = ">=3.11"
 dependencies = ["solo-empire-service-auth>=0.1.0,<0.2"]
 
 [tool.setuptools]
-py-modules = ["server", "integrations_mcp"]
+py-modules = ["server", "integrations_mcp", "platform_inventory"]
 
 [project.optional-dependencies]
 mcp = ["mcp>=2.3,<3", "httpx>=0.27,<1"]  # integrations-mcp (integrations_mcp.py); not needed by the API image

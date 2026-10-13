@@ -51,3 +51,9 @@ Errors keep the v1 envelope: 401 invalid token, 403 owner/tenant/scope denial,
 otherwise 503. No metadata rows appear in readiness responses.
 `source.revision` is the SHA-256 source checksum, an additive v1
 field. Source date and reload semantics remain unchanged.
+# Additive platform inventory
+
+The legacy summary includes `supported_boundaries`; `connected` remains an
+identical compatibility alias for registry-supported boundaries and never
+asserts authenticated accounts. See [Platform integrations v1](platform-integrations.v1.md)
+for the separate per-platform capabilities and explicit owner observations.

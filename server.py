@@ -33,6 +33,7 @@ from typing import Any, Mapping
 from urllib.parse import parse_qs, urlsplit
 
 from service_auth import AuthError, AuthPolicy, check_read_auth, is_loopback, readiness
+from platform_inventory import PlatformStore, ROUTES, ID
 
 
 SERVICE_NAME = "solo-empire-integrations-api"
@@ -187,8 +188,14 @@ class IntegrationsApi:
         allowed_origins: tuple[str, ...] | None = None,
         auth_policy: AuthPolicy | None = None,
         root: Path | None = None,
+        platform_snapshot_path: str | Path | None = None,
+        connections_path: str | Path | None = None,
     ) -> None:
         self.store = RegistryStore(registry_path, root)
+        self.platform_store = PlatformStore(
+            platform_snapshot_path or os.environ.get('INTEGRATIONS_API_PLATFORM_SNAPSHOT') or repository_root() / 'data/platform_integrations.snapshot.json',
+            connections_path or os.environ.get('INTEGRATIONS_API_CONNECTIONS_PATH') or repository_root() / '.runtime/platform-connections.json',
+        )
         self.token = token if token is not None else os.environ.get("INTEGRATIONS_API_TOKEN", "").strip()
         self.environment = (environment or os.environ.get("INTEGRATIONS_API_ENV", "development")).strip().lower()
         self.auth_policy = auth_policy or AuthPolicy.from_env("INTEGRATIONS_API_", "integrations-api", "integrations:read")
@@ -226,6 +233,7 @@ class IntegrationsApi:
                 "apps_matched": len(matched),
                 "categories": len({record["category"] for record in records}),
                 "connected": by_status["live"] + by_status["mcp_only"],
+                "supported_boundaries": by_status["live"] + by_status["mcp_only"],
                 "live": by_status["live"],
                 "mcp_only": by_status["mcp_only"],
                 "paused": by_status["paused"],
@@ -242,6 +250,25 @@ class IntegrationsApi:
             "boundary": "registry metadata only; a listed app is not proof of a working connector",
         })
 
+    def _platforms(self, query: Mapping[str, list[str]]) -> Response:
+        if set(query) - {'platform', 'app', 'route', 'q'} or any(len(values) != 1 for values in query.values()):
+            raise ApiError(400, 'invalid filters', code='invalid_field')
+        filters = {key: query_value(query, key, MAX_QUERY_LENGTH if key == 'q' else 80) for key in ('platform', 'app', 'route', 'q')}
+        if any(filters[k] and not ID.fullmatch(filters[k]) for k in ('platform', 'app')) or filters['route'] and filters['route'] not in ROUTES:
+            raise ApiError(400, 'invalid filters', code='invalid_field')
+        records, _ = self.store.snapshot()
+        payload = self.platform_store.overview(records)
+        if filters['platform'] and filters['platform'] not in {p['id'] for p in payload['platforms']} or filters['app'] and filters['app'] not in {r['id'] for r in records}:
+            raise ApiError(400, 'invalid filters', code='invalid_field')
+        q = filters['q'].casefold()
+        payload['rows'] = [r for r in payload['rows'] if
+            (not filters['platform'] or r['platform_id'] == filters['platform']) and
+            (not filters['app'] or r['app_id'] == filters['app']) and
+            (not filters['route'] or r['recommended_route'] == filters['route']) and
+            (not q or any(q in r[k].casefold() for k in ('app_id', 'app_name', 'category', 'platform_id')))]
+        payload['summary']['rows_matched'] = len(payload['rows'])
+        return Response(200, payload)
+
     def handle(self, method: str, target: str, *, headers: Mapping[str, str] | None = None) -> Response:
         request_headers = {str(key).lower(): str(value) for key, value in (headers or {}).items()}
         parsed = urlsplit(target)
@@ -253,6 +280,11 @@ class IntegrationsApi:
                 return self._ready()
             if method == "GET" and path == "/health":
                 return Response(200, {"status": "ok", "service": SERVICE_NAME, "schema_version": SCHEMA_VERSION, "timestamp": utc_now()})
+            if path == '/api/v1/integrations/platforms':
+                self._check_read_auth(request_headers)
+                if method != 'GET':
+                    raise ApiError(405, 'platform inventory is read-only', code='method_not_allowed')
+                return self._platforms(parse_qs(parsed.query, keep_blank_values=True))
             if path == "/api/v1/integrations":
                 self._check_read_auth(request_headers)
                 if method != "GET":
@@ -261,7 +293,9 @@ class IntegrationsApi:
             raise ApiError(404, "route not found", code="not_found")
         except ApiError as exc:
             return Response(exc.status, {"error": {"code": exc.code, "message": exc.message}})
-        except (OSError, ValueError, TypeError):
+        except (OSError, ValueError, TypeError, RecursionError):
+            if path == '/api/v1/integrations/platforms':
+                return Response(503, {'error': {'code': 'platform_inventory_unavailable', 'message': 'Platform integration inventory could not be read'}})
             return Response(503, {"error": {"code": "registry_unavailable", "message": "External app registry could not be read"}})
         except Exception:
             return Response(500, {"error": {"code": "internal_error", "message": "Integrations service could not complete the request"}})

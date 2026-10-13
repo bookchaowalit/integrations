@@ -69,6 +69,9 @@ class IntegrationsApiTest(unittest.TestCase):
         self.assertEqual(api.handle("GET", "/health").status, 200)
         self.assertEqual(api.handle("GET", "/ready").status, 200)
         self.assertEqual(api.handle("GET", "/api/v1/integrations").status, 401)
+        self.assertEqual(api.handle('GET', '/api/v1/integrations/platforms').status, 401)
+        # Authorized requests reach the missing-publication fixed error; auth runs first.
+        self.assertEqual(api.handle('GET', '/api/v1/integrations/platforms', headers=headers()).status, 503)
         response = api.handle("GET", "/api/v1/integrations", headers=headers())
         self.assertEqual(response.status, 200)
         self.assertEqual(len(response.payload["source"]["revision"]), 64)
@@ -83,6 +86,8 @@ class IntegrationsApiTest(unittest.TestCase):
                 self.assertEqual(denied.status, expected)
                 self.assertEqual(set(denied.payload), {"error"})
                 self.assertNotIn("Bearer", json.dumps(denied.payload))
+                platform_denied = api.handle('GET', '/api/v1/integrations/platforms', headers=headers(changes))
+                self.assertEqual(platform_denied.status, expected)
         self.assertEqual(api.handle("GET", "/api/v1/integrations", headers={"Authorization": "Bearer " + "x"*9000}).status, 401)
 
     def test_static_token_is_never_production_authorization(self) -> None:
@@ -114,6 +119,7 @@ class IntegrationsApiTest(unittest.TestCase):
         self.assertEqual(payload["schema_version"], "solo-empire.integrations.v1")
         self.assertEqual(payload["summary"]["apps_total"], 3)
         self.assertEqual(payload["summary"]["connected"], 2)
+        self.assertEqual(payload['summary']['supported_boundaries'], payload['summary']['connected'])
         self.assertEqual(payload["summary"]["with_guide"], 1)
         apps = {app["id"]: app for app in payload["apps"]}
         self.assertEqual(apps["gmail"]["guide"], "integrations/gmail/README.md")
