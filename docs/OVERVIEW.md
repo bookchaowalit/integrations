@@ -27,7 +27,7 @@ All data is stored in your local SQLite database and can be queried through the 
 ### ✅ Google Calendar
 - **Status**: Ready to setup
 - **What it does**: Syncs calendar events to `calendar_events` table
-- **Boundary guide**: [`google/README.md`](../platform-integrations-api/google/README.md)
+- **Boundary guide**: [`google/README.md`](../integrations/google/README.md)
 - **Setup**: `python3 integrations/google/setup_calendar.py`
 - **Sync**: `python3 integrations/google/calendar_sync.py --sync`
 
@@ -86,7 +86,7 @@ All data is stored in your local SQLite database and can be queried through the 
 - **Review/apply**: `task bookmarks:review -- --json` then
   `task bookmarks:apply -- --json`
 - **Search**: `task bookmarks:sync -- --search "keyword"`
-- **Guide**: [`brave-bookmarks/README.md`](../platform-integrations-api/brave-bookmarks/README.md) and
+- **Guide**: [`brave-bookmarks/README.md`](../integrations/brave-bookmarks/README.md) and
   Solo Empire `docs/references/BRAVE-BOOKMARKS.md`
 
 ### ✅ Todoist
@@ -101,8 +101,8 @@ All data is stored in your local SQLite database and can be queried through the 
 - **What it does**: Receives LINE events, persists them idempotently in
   `webhook_log` with `processed=0`, and exposes them for the central router
 - **Outbound messaging**: Not implemented; no messages are sent by this route
-- **Account metadata**: [`accounts/line/business/solo-empire/`](https://github.com/bookchaowalit/platform-accounts-api/tree/main/accounts/line/business/solo-empire)
-- **Integration guide**: [`line/README.md`](../platform-integrations-api/line/README.md)
+- **Account metadata**: [`accounts/line/business/solo-empire/`](https://github.com/bookchaowalit/accounts/tree/main/accounts/line/business/solo-empire)
+- **Integration guide**: [`line/README.md`](../integrations/line/README.md)
 - **Implementation**: `POST /api/webhook/line` verifies `x-line-signature`
   before parsing and does not require the internal Bearer token; the
   `integrations:line:process` worker routes verified events into the
@@ -316,7 +316,7 @@ LINE_SOLO_EMPIRE_WEBHOOK_URL
 
 Do not configure or test outbound messaging against real recipients until the
 account allowlist and confirmation policy are in place. See
-[`line/README.md`](../platform-integrations-api/line/README.md) for the setup checklist and platform
+[`line/README.md`](../integrations/line/README.md) for the setup checklist and platform
 constraints.
 
 ## 🤖 Automation

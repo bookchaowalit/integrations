@@ -4,7 +4,7 @@ Status: `implementation-ready; credentials pending`
 
 This document describes the planned LINE integration for Solo Empire. The
 account-specific identity and workflow notes live at
-[`accounts/line/business/solo-empire/`](../../platform-accounts-api/line/business/solo-empire).
+[`accounts/line/business/solo-empire/`](../../accounts/line/business/solo-empire).
 
 ## Scope
 
@@ -57,7 +57,7 @@ the Messaging API server needed to receive events.
 - [ ] Configure the LINE Bot MCP Server only after the API path is verified.
 - [ ] Add an allowlist and confirmation step before an AI agent can send
       messages to real users.
-- [ ] Update [`account.yaml`](../../platform-accounts-api/line/business/solo-empire/account.yaml)
+- [ ] Update [`account.yaml`](../../accounts/line/business/solo-empire/account.yaml)
       from `planned` as each capability is verified.
 
 ## Important platform constraints
