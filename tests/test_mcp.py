@@ -14,10 +14,11 @@ import integrations_mcp as mod
 from integrations_mcp import build_server
 
 API_KEY = mod.URL_KEY
-READS = {"integrations.list"}
+READS = {"integrations.list", "integrations.platforms"}
 WRITES = set()
 ARGS = {}
 SAMPLES = [
+    ("integrations.platforms", {"platform": "codex-app", "app": "gmail", "route": "plugin", "q": "mail"}, "GET", "/api/v1/integrations/platforms", {"platform": "codex-app", "app": "gmail", "route": "plugin", "q": "mail"}),
     ("integrations.list", {"status": "live", "q": "git"}, "GET", "/api/v1/integrations", {"status": "live", "q": "git"}),
 ]
 DEFAULT_BODY = {"items": []}

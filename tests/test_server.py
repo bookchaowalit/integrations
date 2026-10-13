@@ -58,7 +58,10 @@ class IntegrationsApiTest(unittest.TestCase):
         ).decode()
         policy = AuthPolicy("https://solo.example", "integrations-api", public,
                             frozenset({"fixture-owner"}), "integrations:read")
-        api = IntegrationsApi(self.path, environment="production", auth_policy=policy, root=self.root)
+        platform_path = self.root / 'fixtures' / 'platform.snapshot.json'
+        connections_path = self.root / 'fixtures' / 'connections.json'
+        api = IntegrationsApi(self.path, environment="production", auth_policy=policy, root=self.root,
+                              platform_snapshot_path=platform_path, connections_path=connections_path)
         now = int(time.time())
         claims = dict(iss="https://solo.example", aud="integrations-api", sub="fixture-owner",
                       tenant_id="owner", scope="integrations:read", iat=now, nbf=now,
@@ -69,6 +72,22 @@ class IntegrationsApiTest(unittest.TestCase):
         self.assertEqual(api.handle("GET", "/health").status, 200)
         self.assertEqual(api.handle("GET", "/ready").status, 200)
         self.assertEqual(api.handle("GET", "/api/v1/integrations").status, 401)
+        self.assertEqual(api.handle('GET', '/api/v1/integrations/platforms').status, 401)
+        # Authorized requests reach the missing-publication fixed error; auth runs first.
+        self.assertEqual(api.handle('GET', '/api/v1/integrations/platforms', headers=headers()).status, 503)
+        captured_at = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(now))
+        manifest = dict(manifest_key='control/manifests/source=fixture/batch_id=test.json',
+                        manifest_sha256='a'*64, raw_sha256='b'*64, bronze_sha256='c'*64)
+        platform_path.parent.mkdir()
+        platform_path.write_text(json.dumps(dict(
+            schema_version='solo-empire.platform-integrations.v1', captured_at=captured_at,
+            platforms=[dict(id='codex-app', name='Codex', mcp_transports=['stdio'], docs_url='https://example.com/docs')],
+            capabilities=[], lineage=dict(dataset='platform_integrations', **manifest,
+                                          source_manifests=[dict(source_id='fixture', **manifest)]))), encoding='utf-8')
+        published = api.handle('GET', '/api/v1/integrations/platforms', headers=headers())
+        self.assertEqual(published.status, 200)
+        self.assertEqual(len(published.payload['rows']), 3)
+        self.assertTrue(all(row['connection']['authentication'] == 'unknown' for row in published.payload['rows']))
         response = api.handle("GET", "/api/v1/integrations", headers=headers())
         self.assertEqual(response.status, 200)
         self.assertEqual(len(response.payload["source"]["revision"]), 64)
@@ -83,6 +102,8 @@ class IntegrationsApiTest(unittest.TestCase):
                 self.assertEqual(denied.status, expected)
                 self.assertEqual(set(denied.payload), {"error"})
                 self.assertNotIn("Bearer", json.dumps(denied.payload))
+                platform_denied = api.handle('GET', '/api/v1/integrations/platforms', headers=headers(changes))
+                self.assertEqual(platform_denied.status, expected)
         self.assertEqual(api.handle("GET", "/api/v1/integrations", headers={"Authorization": "Bearer " + "x"*9000}).status, 401)
 
     def test_static_token_is_never_production_authorization(self) -> None:
@@ -114,6 +135,7 @@ class IntegrationsApiTest(unittest.TestCase):
         self.assertEqual(payload["schema_version"], "solo-empire.integrations.v1")
         self.assertEqual(payload["summary"]["apps_total"], 3)
         self.assertEqual(payload["summary"]["connected"], 2)
+        self.assertEqual(payload['summary']['supported_boundaries'], payload['summary']['connected'])
         self.assertEqual(payload["summary"]["with_guide"], 1)
         apps = {app["id"]: app for app in payload["apps"]}
         self.assertEqual(apps["gmail"]["guide"], "integrations/gmail/README.md")
