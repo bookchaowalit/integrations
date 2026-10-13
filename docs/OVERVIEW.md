@@ -101,7 +101,7 @@ All data is stored in your local SQLite database and can be queried through the 
 - **What it does**: Receives LINE events, persists them idempotently in
   `webhook_log` with `processed=0`, and exposes them for the central router
 - **Outbound messaging**: Not implemented; no messages are sent by this route
-- **Account metadata**: [`accounts/line/business/solo-empire/`](https://github.com/bookchaowalit/accounts/tree/main/accounts/line/business/solo-empire)
+- **Account metadata**: [`accounts/line/business/solo-empire/`](https://github.com/bookchaowalit/platform-accounts-api/tree/main/accounts/line/business/solo-empire)
 - **Integration guide**: [`line/README.md`](../integrations/line/README.md)
 - **Implementation**: `POST /api/webhook/line` verifies `x-line-signature`
   before parsing and does not require the internal Bearer token; the
