@@ -7,7 +7,7 @@ updated: 2026-08-16
 description: Account-agnostic boundary for the local Google Calendar integration.
 status: active
 parent: integrations/README.md
-related: [../../accounts/README.md, ../INTEGRATION-GUIDE.md]
+related: [../../platform-accounts-api/README.md, ../INTEGRATION-GUIDE.md]
 ---
 
 # Google Integration Boundary
