@@ -4,10 +4,8 @@ Google Calendar Integration Setup
 Guides you through setting up Google Calendar API access
 """
 
-import os
-import sys
-import json
 import subprocess
+import sys
 from pathlib import Path
 
 CREDENTIALS_DIR = Path.home() / ".config" / "solo-empire" / "integrations" / "google"
@@ -20,9 +18,9 @@ def check_dependencies():
     print("🔍 Checking dependencies...")
 
     try:
-        import google.oauth2.credentials
-        import google_auth_oauthlib
-        import googleapiclient
+        import google.oauth2.credentials  # noqa: F401 - import probes that the package is installed
+        import google_auth_oauthlib  # noqa: F401 - import probes that the package is installed
+        import googleapiclient  # noqa: F401 - import probes that the package is installed
 
         print("✅ All dependencies installed")
         return True
@@ -73,7 +71,7 @@ def setup_credentials():
 
     print("6️⃣  Download credentials:")
     print("   - Click the download button (⬇️) on your new credentials")
-    print(f"   - Save the file as: credentials.json")
+    print("   - Save the file as: credentials.json")
     print(f"   - Move it to: {CREDENTIALS_FILE}\n")
 
     print("7️⃣  Verify setup:")
@@ -82,7 +80,7 @@ def setup_credentials():
         return True
     else:
         print(f"   ⏳ Waiting for: {CREDENTIALS_FILE}")
-        print(f"\n💡 Tip: You can manually copy the file to:")
+        print("\n💡 Tip: You can manually copy the file to:")
         print(f"   {CREDENTIALS_FILE}")
         return False
 
@@ -114,7 +112,7 @@ def test_connection():
             print("\n⚠️  No events found (this is OK if your calendar is empty)")
             return True
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - interactive setup: report any failure and return False
         print(f"❌ Connection test failed: {e}")
         return False
 
@@ -126,7 +124,7 @@ def create_cron_job():
     script_path = Path(__file__).parent / "calendar_sync.py"
 
     print("\n📋 To sync automatically, add this to your crontab:")
-    print(f"\n   crontab -e\n")
+    print("\n   crontab -e\n")
     print("   # Add this line to sync every hour:")
     print(
         f"   0 * * * * /usr/bin/python3 {script_path} --sync >> /tmp/calendar_sync.log 2>&1\n"
@@ -145,7 +143,8 @@ def main():
         install = input("\n📦 Install dependencies now? (y/n): ").lower()
         if install == "y":
             subprocess.run(
-                [sys.executable, "-m", "pip", "install", "-r", REQUIREMENTS_FILE]
+                [sys.executable, "-m", "pip", "install", "-r", REQUIREMENTS_FILE],
+                check=False,  # success is verified by re-running check_dependencies()
             )
             if not check_dependencies():
                 print("\n❌ Failed to install dependencies. Please install manually.")

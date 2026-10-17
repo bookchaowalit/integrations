@@ -23,17 +23,17 @@ import json
 import os
 import re
 from collections import Counter
+from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import RLock
-from typing import Any, Mapping
+from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
 from service_auth import AuthError, AuthPolicy, check_read_auth, is_loopback, readiness
-
 
 SERVICE_NAME = "solo-empire-integrations-api"
 SCHEMA_VERSION = "solo-empire.integrations.v1"
@@ -85,12 +85,7 @@ class Response:
 
 
 def utc_now() -> str:
-    return (
-        datetime.now(timezone.utc)
-        .replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z")
-    )
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def repository_root() -> Path:
@@ -205,7 +200,7 @@ class RegistryStore:
                 metadata = {
                     "path": "data/external_app_registry.ts",
                     "revision": hashlib.sha256(source_text.encode("utf-8")).hexdigest(),
-                    "modified_at": datetime.fromtimestamp(mtime, timezone.utc)
+                    "modified_at": datetime.fromtimestamp(mtime, UTC)
                     .replace(microsecond=0)
                     .isoformat()
                     .replace("+00:00", "Z"),
@@ -364,7 +359,7 @@ class IntegrationsApi:
                     }
                 },
             )
-        except Exception:
+        except Exception:  # noqa: BLE001 - last-resort 500 that never echoes internal error text
             return Response(
                 500,
                 {
@@ -379,7 +374,7 @@ class IntegrationsApi:
 class IntegrationsRequestHandler(BaseHTTPRequestHandler):
     api = IntegrationsApi()
 
-    def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
+    def log_message(self, format: str, *args: Any) -> None:
         return
 
     def _dispatch(self) -> None:

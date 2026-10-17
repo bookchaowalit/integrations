@@ -4,25 +4,24 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
 import tempfile
-import unittest
 import time
-import subprocess
-import os
+import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import jwt
-from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from service_auth import AuthPolicy
-from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO = ROOT
 sys.path.insert(0, str(ROOT))
-from server import IntegrationsApi, parse_registry  # noqa: E402
-
+from server import IntegrationsApi, parse_registry
 
 REGISTRY = """export const EXTERNAL_APP_REGISTRY: ExternalAppRecord[] = [
   // Existing direct integrations (2)
@@ -76,17 +75,17 @@ class IntegrationsApiTest(unittest.TestCase):
             self.path, environment="production", auth_policy=policy, root=self.root
         )
         now = int(time.time())
-        claims = dict(
-            iss="https://solo.example",
-            aud="integrations-api",
-            sub="fixture-owner",
-            tenant_id="owner",
-            scope="integrations:read",
-            iat=now,
-            nbf=now,
-            exp=now + 120,
-            jti="fixture-request",
-        )
+        claims = {
+            "iss": "https://solo.example",
+            "aud": "integrations-api",
+            "sub": "fixture-owner",
+            "tenant_id": "owner",
+            "scope": "integrations:read",
+            "iat": now,
+            "nbf": now,
+            "exp": now + 120,
+            "jti": "fixture-request",
+        }
 
         def headers(changes=None):
             return {
@@ -162,6 +161,7 @@ class IntegrationsApiTest(unittest.TestCase):
             capture_output=True,
             text=True,
             timeout=5,
+            check=False,  # the test asserts the non-zero exit code itself
         )
         self.assertEqual(result.returncode, 2)
         self.assertIn("INTEGRATIONS_API_AUTH_*", result.stderr)
@@ -219,9 +219,8 @@ class IntegrationsApiTest(unittest.TestCase):
             REGISTRY.replace("{ id: 'shop-x'", "{ id: shopX"),
             REGISTRY.replace("id: 'supabase'", "id: 'gmail'"),
         ):
-            with self.subTest(broken=broken[:0]):
-                with self.assertRaises(ValueError):
-                    parse_registry(broken)
+            with self.subTest(broken=broken[:0]), self.assertRaises(ValueError):
+                parse_registry(broken)
         self.path.write_text(
             REGISTRY.replace("{ id: 'shop-x'", "{ id: shopX"), encoding="utf-8"
         )
