@@ -88,15 +88,20 @@ import os
 import sys
 from pathlib import Path
 
-CREDENTIALS_DIR = Path.home() / ".config" / "solo-empire" / "integrations" / "service_name"
+CREDENTIALS_DIR = (
+    Path.home() / ".config" / "solo-empire" / "integrations" / "service_name"
+)
+
 
 def check_dependencies():
     """Check if required packages are installed"""
     try:
         import service_client
+
         return True
     except ImportError:
         return False
+
 
 def setup_credentials():
     """Guide user through credential setup"""
@@ -104,23 +109,26 @@ def setup_credentials():
     # Add your setup instructions here
     pass
 
+
 def test_connection():
     """Test the API connection"""
     print("🧪 Testing connection...")
     # Add your test logic here
     pass
 
+
 def main():
     print("🚀 Service Integration Setup")
-    
+
     if not check_dependencies():
         print("❌ Dependencies not installed")
         sys.exit(1)
-    
+
     setup_credentials()
     test_connection()
-    
+
     print("✅ Setup complete!")
+
 
 if __name__ == "__main__":
     main()
@@ -144,48 +152,57 @@ from pathlib import Path
 
 DB_PATH = Path(os.environ["OPERATIONAL_DB_PATH"])
 
+
 def fetch_data_from_api():
     """Fetch data from external API"""
     # Add your API call logic here
     return []
 
+
 def transform_data(api_data):
     """Transform API data to database format"""
     transformed = []
     for item in api_data:
-        transformed.append({
-            'id': item['id'],
-            'source': 'service_name',
-            # Map other fields
-        })
+        transformed.append(
+            {
+                "id": item["id"],
+                "source": "service_name",
+                # Map other fields
+            }
+        )
     return transformed
+
 
 def sync_data():
     """Sync data to database"""
     print("📊 Syncing data...")
-    
+
     # Fetch from API
     api_data = fetch_data_from_api()
-    
+
     # Transform
     db_data = transform_data(api_data)
-    
+
     # Save to database
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    
+
     for item in db_data:
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR REPLACE INTO service_data
             (id, source, ...)
             VALUES (?, ?, ...)
-        """, (item['id'], item['source'], ...))
-    
+        """,
+            (item["id"], item["source"], ...),
+        )
+
     conn.commit()
     conn.close()
-    
+
     print(f"✅ Synced {len(db_data)} items")
     return len(db_data)
+
 
 if __name__ == "__main__":
     sync_data()
@@ -198,24 +215,26 @@ Add your integration to `scripts/sync_all_integrations.py`:
 ```python
 def sync_service_name():
     """Sync Service Name data"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("🔧 Syncing Service Name...")
-    print("="*70)
-    
+    print("=" * 70)
+
     try:
         from service_name.service_sync import sync_data
+
         count = sync_data()
-        return {'status': 'success', 'synced': count}
+        return {"status": "success", "synced": count}
     except ImportError:
         print("⚠️  Service Name integration not set up")
-        return {'status': 'not_configured'}
+        return {"status": "not_configured"}
     except Exception as e:
         print(f"❌ Error: {e}")
-        return {'status': 'error', 'error': str(e)}
+        return {"status": "error", "error": str(e)}
+
 
 # Add to main() function:
 if args.all or args.service_name:
-    results['service_name'] = sync_service_name()
+    results["service_name"] = sync_service_name()
 ```
 
 ### Step 7: Update Documentation
@@ -312,55 +331,66 @@ from pathlib import Path
 TODOIST_API = "https://api.todoist.com/rest/v2/tasks"
 TOKEN_FILE = Path.home() / ".config/solo-empire/integrations/todoist/token.json"
 
+
 def fetch_tasks():
     """Fetch tasks from Todoist API"""
     with open(TOKEN_FILE) as f:
-        token = json.load(f)['token']
-    
-    response = requests.get(
-        TODOIST_API,
-        headers={"Authorization": f"Bearer {token}"}
-    )
+        token = json.load(f)["token"]
+
+    response = requests.get(TODOIST_API, headers={"Authorization": f"Bearer {token}"})
     return response.json()
+
 
 def transform_task(task):
     """Transform Todoist task to database format"""
     return {
-        'id': task['id'],
-        'source': 'todoist',
-        'title': task['content'],
-        'description': task.get('description', ''),
-        'due_date': task.get('due', {}).get('date'),
-        'priority': task.get('priority', 3),
-        'status': 'completed' if task.get('is_completed') else 'pending',
-        'project': task.get('project_id'),
-        'tags': json.dumps(task.get('labels', [])),
-        'url': task.get('url')
+        "id": task["id"],
+        "source": "todoist",
+        "title": task["content"],
+        "description": task.get("description", ""),
+        "due_date": task.get("due", {}).get("date"),
+        "priority": task.get("priority", 3),
+        "status": "completed" if task.get("is_completed") else "pending",
+        "project": task.get("project_id"),
+        "tags": json.dumps(task.get("labels", [])),
+        "url": task.get("url"),
     }
+
 
 def sync_todoist_tasks():
     """Sync all tasks from Todoist"""
     tasks = fetch_tasks()
-    
+
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    
+
     for task in tasks:
         data = transform_task(task)
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR REPLACE INTO external_tasks
             (id, source, title, description, due_date, priority, 
              status, project, tags, url, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            data['id'], data['source'], data['title'], data['description'],
-            data['due_date'], data['priority'], data['status'], data['project'],
-            data['tags'], data['url'], datetime.now().isoformat()
-        ))
-    
+        """,
+            (
+                data["id"],
+                data["source"],
+                data["title"],
+                data["description"],
+                data["due_date"],
+                data["priority"],
+                data["status"],
+                data["project"],
+                data["tags"],
+                data["url"],
+                datetime.now().isoformat(),
+            ),
+        )
+
     conn.commit()
     conn.close()
-    
+
     return len(tasks)
 ```
 

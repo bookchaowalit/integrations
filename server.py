@@ -41,21 +41,37 @@ STATUSES = ("live", "mcp_only", "paused", "planned")
 MAX_QUERY_LENGTH = 80
 MAX_FILTER_LENGTH = 40
 RECORD_RE = re.compile(r"^\s*\{(?P<body>.*)\},?\s*$")
-FIELD_RE = re.compile(r"\s*(?P<key>[A-Za-z]+):\s*'(?P<value>(?:[^'\\]|\\.)*)'\s*(?:,|$)")
+FIELD_RE = re.compile(
+    r"\s*(?P<key>[A-Za-z]+):\s*'(?P<value>(?:[^'\\]|\\.)*)'\s*(?:,|$)"
+)
 SECTION_RE = re.compile(r"^\s*//\s*(?P<label>.+?)\s*(?:\(\d+\))?\s*$")
 SAFE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 STATUS_DEFINITIONS = [
-    {"value": "live", "description": "The direct read-only health checker already supports the provider."},
-    {"value": "mcp_only", "description": "An MCP boundary exists, but the REST API does not proxy it."},
-    {"value": "paused", "description": "Intentionally disabled until the account and safety gate are reopened."},
-    {"value": "planned", "description": "Discovery inventory only; no connector should be implied."},
+    {
+        "value": "live",
+        "description": "The direct read-only health checker already supports the provider.",
+    },
+    {
+        "value": "mcp_only",
+        "description": "An MCP boundary exists, but the REST API does not proxy it.",
+    },
+    {
+        "value": "paused",
+        "description": "Intentionally disabled until the account and safety gate are reopened.",
+    },
+    {
+        "value": "planned",
+        "description": "Discovery inventory only; no connector should be implied.",
+    },
 ]
 
 
 class ApiError(Exception):
     """An expected client or service error with a safe public message."""
 
-    def __init__(self, status: int, message: str, *, code: str = "request_error") -> None:
+    def __init__(
+        self, status: int, message: str, *, code: str = "request_error"
+    ) -> None:
         super().__init__(message)
         self.status = status
         self.message = message
@@ -69,7 +85,12 @@ class Response:
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
 def repository_root() -> Path:
@@ -78,7 +99,11 @@ def repository_root() -> Path:
 
 def default_registry_path() -> Path:
     configured = os.environ.get("INTEGRATIONS_API_REGISTRY_PATH")
-    return Path(configured).expanduser() if configured else repository_root() / "data" / "external_app_registry.ts"
+    return (
+        Path(configured).expanduser()
+        if configured
+        else repository_root() / "data" / "external_app_registry.ts"
+    )
 
 
 def query_value(query: Mapping[str, list[str]], field: str, max_length: int) -> str:
@@ -89,7 +114,12 @@ def query_value(query: Mapping[str, list[str]], field: str, max_length: int) -> 
 
 
 def counts(values: Any) -> list[dict[str, Any]]:
-    return [{"value": key, "count": count} for key, count in sorted(Counter(values).items(), key=lambda item: (-item[1], item[0]))]
+    return [
+        {"value": key, "count": count}
+        for key, count in sorted(
+            Counter(values).items(), key=lambda item: (-item[1], item[0])
+        )
+    ]
 
 
 def parse_fields(body: str) -> dict[str, str]:
@@ -112,7 +142,7 @@ def parse_registry(source: str) -> list[dict[str, Any]]:
         raise ValueError("registry array not found")
     records: list[dict[str, Any]] = []
     section = "Other"
-    for line in source[start + 3:end].splitlines():
+    for line in source[start + 3 : end].splitlines():
         if not line.strip():
             continue
         if heading := SECTION_RE.match(line):
@@ -128,11 +158,17 @@ def parse_registry(source: str) -> list[dict[str, Any]]:
             raise ValueError("invalid registry record")
         if not fields["apiDocs"].startswith("https://"):
             raise ValueError("registry docs link must be https")
-        records.append({
-            "id": fields["id"], "name": fields["name"][:80], "category": fields["category"][:40],
-            "status": fields["status"], "api_docs": fields["apiDocs"][:300],
-            "note": fields.get("note", "")[:300] or None, "section": section[:80],
-        })
+        records.append(
+            {
+                "id": fields["id"],
+                "name": fields["name"][:80],
+                "category": fields["category"][:40],
+                "status": fields["status"],
+                "api_docs": fields["apiDocs"][:300],
+                "note": fields.get("note", "")[:300] or None,
+                "section": section[:80],
+            }
+        )
     if len({record["id"] for record in records}) != len(records):
         raise ValueError("duplicate registry id")
     return records
@@ -149,7 +185,9 @@ def guide_path(root: Path, app_id: str) -> str | None:
 class RegistryStore:
     """Reload the registry only when its modification time changes."""
 
-    def __init__(self, path: str | Path | None = None, root: Path | None = None) -> None:
+    def __init__(
+        self, path: str | Path | None = None, root: Path | None = None
+    ) -> None:
         self.path = Path(path) if path else default_registry_path()
         self.root = root or repository_root()
         self._lock = RLock()
@@ -167,7 +205,10 @@ class RegistryStore:
                 metadata = {
                     "path": "data/external_app_registry.ts",
                     "revision": hashlib.sha256(source_text.encode("utf-8")).hexdigest(),
-                    "modified_at": datetime.fromtimestamp(mtime, timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+                    "modified_at": datetime.fromtimestamp(mtime, timezone.utc)
+                    .replace(microsecond=0)
+                    .isoformat()
+                    .replace("+00:00", "Z"),
                     "status_definitions": STATUS_DEFINITIONS,
                 }
                 self._snapshot = (records, metadata)
@@ -189,15 +230,35 @@ class IntegrationsApi:
         root: Path | None = None,
     ) -> None:
         self.store = RegistryStore(registry_path, root)
-        self.token = token if token is not None else os.environ.get("INTEGRATIONS_API_TOKEN", "").strip()
-        self.environment = (environment or os.environ.get("INTEGRATIONS_API_ENV", "development")).strip().lower()
-        self.auth_policy = auth_policy or AuthPolicy.from_env("INTEGRATIONS_API_", "integrations-api", "integrations:read")
-        configured_origins = os.environ.get("INTEGRATIONS_API_CORS_ORIGINS", "http://127.0.0.1:3600,http://localhost:3600")
-        self.allowed_origins = allowed_origins or tuple(item.strip() for item in configured_origins.split(",") if item.strip())
+        self.token = (
+            token
+            if token is not None
+            else os.environ.get("INTEGRATIONS_API_TOKEN", "").strip()
+        )
+        self.environment = (
+            (environment or os.environ.get("INTEGRATIONS_API_ENV", "development"))
+            .strip()
+            .lower()
+        )
+        self.auth_policy = auth_policy or AuthPolicy.from_env(
+            "INTEGRATIONS_API_", "integrations-api", "integrations:read"
+        )
+        configured_origins = os.environ.get(
+            "INTEGRATIONS_API_CORS_ORIGINS",
+            "http://127.0.0.1:3600,http://localhost:3600",
+        )
+        self.allowed_origins = allowed_origins or tuple(
+            item.strip() for item in configured_origins.split(",") if item.strip()
+        )
 
     def _check_read_auth(self, headers: Mapping[str, str]) -> None:
         try:
-            check_read_auth(self.auth_policy, headers, environment=self.environment, token=self.token)
+            check_read_auth(
+                self.auth_policy,
+                headers,
+                environment=self.environment,
+                token=self.token,
+            )
         except AuthError as exc:
             raise ApiError(exc.status, exc.message, code=exc.code) from None
 
@@ -211,39 +272,57 @@ class IntegrationsApi:
         q = query_value(query, "q", MAX_QUERY_LENGTH).casefold()
         records, metadata = self.store.snapshot()
         matched = [
-            record for record in records
+            record
+            for record in records
             if (not status or record["status"] == status)
             and (not category or record["category"] == category)
-            and (not q or any(q in str(record[field] or "").casefold() for field in ("id", "name", "category", "note")))
+            and (
+                not q
+                or any(
+                    q in str(record[field] or "").casefold()
+                    for field in ("id", "name", "category", "note")
+                )
+            )
         ]
         by_status = Counter(record["status"] for record in records)
-        return Response(200, {
-            "schema_version": SCHEMA_VERSION,
-            "generated_at": utc_now(),
-            "source": metadata,
-            "summary": {
-                "apps_total": len(records),
-                "apps_matched": len(matched),
-                "categories": len({record["category"] for record in records}),
-                "connected": by_status["live"] + by_status["mcp_only"],
-                "live": by_status["live"],
-                "mcp_only": by_status["mcp_only"],
-                "paused": by_status["paused"],
-                "planned": by_status["planned"],
-                "with_guide": sum(1 for record in records if record["guide"]),
+        return Response(
+            200,
+            {
+                "schema_version": SCHEMA_VERSION,
+                "generated_at": utc_now(),
+                "source": metadata,
+                "summary": {
+                    "apps_total": len(records),
+                    "apps_matched": len(matched),
+                    "categories": len({record["category"] for record in records}),
+                    "connected": by_status["live"] + by_status["mcp_only"],
+                    "live": by_status["live"],
+                    "mcp_only": by_status["mcp_only"],
+                    "paused": by_status["paused"],
+                    "planned": by_status["planned"],
+                    "with_guide": sum(1 for record in records if record["guide"]),
+                },
+                "signals": {
+                    "statuses": [
+                        {"value": key, "count": by_status[key]}
+                        for key in STATUSES
+                        if by_status[key]
+                    ],
+                    "categories": counts(record["category"] for record in records),
+                    "sections": counts(record["section"] for record in records),
+                },
+                "filters": {"status": status, "category": category, "q": q},
+                "apps": matched,
+                "boundary": "registry metadata only; a listed app is not proof of a working connector",
             },
-            "signals": {
-                "statuses": [{"value": key, "count": by_status[key]} for key in STATUSES if by_status[key]],
-                "categories": counts(record["category"] for record in records),
-                "sections": counts(record["section"] for record in records),
-            },
-            "filters": {"status": status, "category": category, "q": q},
-            "apps": matched,
-            "boundary": "registry metadata only; a listed app is not proof of a working connector",
-        })
+        )
 
-    def handle(self, method: str, target: str, *, headers: Mapping[str, str] | None = None) -> Response:
-        request_headers = {str(key).lower(): str(value) for key, value in (headers or {}).items()}
+    def handle(
+        self, method: str, target: str, *, headers: Mapping[str, str] | None = None
+    ) -> Response:
+        request_headers = {
+            str(key).lower(): str(value) for key, value in (headers or {}).items()
+        }
         parsed = urlsplit(target)
         path = parsed.path.rstrip("/") or "/"
         try:
@@ -252,19 +331,49 @@ class IntegrationsApi:
             if method == "GET" and path == "/ready":
                 return self._ready()
             if method == "GET" and path == "/health":
-                return Response(200, {"status": "ok", "service": SERVICE_NAME, "schema_version": SCHEMA_VERSION, "timestamp": utc_now()})
+                return Response(
+                    200,
+                    {
+                        "status": "ok",
+                        "service": SERVICE_NAME,
+                        "schema_version": SCHEMA_VERSION,
+                        "timestamp": utc_now(),
+                    },
+                )
             if path == "/api/v1/integrations":
                 self._check_read_auth(request_headers)
                 if method != "GET":
-                    raise ApiError(405, "integration registry is read-only", code="method_not_allowed")
+                    raise ApiError(
+                        405,
+                        "integration registry is read-only",
+                        code="method_not_allowed",
+                    )
                 return self._overview(parse_qs(parsed.query))
             raise ApiError(404, "route not found", code="not_found")
         except ApiError as exc:
-            return Response(exc.status, {"error": {"code": exc.code, "message": exc.message}})
+            return Response(
+                exc.status, {"error": {"code": exc.code, "message": exc.message}}
+            )
         except (OSError, ValueError, TypeError):
-            return Response(503, {"error": {"code": "registry_unavailable", "message": "External app registry could not be read"}})
+            return Response(
+                503,
+                {
+                    "error": {
+                        "code": "registry_unavailable",
+                        "message": "External app registry could not be read",
+                    }
+                },
+            )
         except Exception:
-            return Response(500, {"error": {"code": "internal_error", "message": "Integrations service could not complete the request"}})
+            return Response(
+                500,
+                {
+                    "error": {
+                        "code": "internal_error",
+                        "message": "Integrations service could not complete the request",
+                    }
+                },
+            )
 
 
 class IntegrationsRequestHandler(BaseHTTPRequestHandler):
@@ -276,12 +385,34 @@ class IntegrationsRequestHandler(BaseHTTPRequestHandler):
     def _dispatch(self) -> None:
         origin = self.headers.get("Origin")
         if origin and origin not in self.api.allowed_origins:
-            self._write(Response(403, {"error": {"code": "origin_not_allowed", "message": "origin is not allowed"}}), origin=None)
+            self._write(
+                Response(
+                    403,
+                    {
+                        "error": {
+                            "code": "origin_not_allowed",
+                            "message": "origin is not allowed",
+                        }
+                    },
+                ),
+                origin=None,
+            )
             return
-        self._write(self.api.handle(self.command, self.path, headers=dict(self.headers.items())), origin=origin)
+        self._write(
+            self.api.handle(
+                self.command, self.path, headers=dict(self.headers.items())
+            ),
+            origin=origin,
+        )
 
     def _write(self, response: Response, *, origin: str | None) -> None:
-        encoded = b"" if response.status == HTTPStatus.NO_CONTENT else json.dumps(response.payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        encoded = (
+            b""
+            if response.status == HTTPStatus.NO_CONTENT
+            else json.dumps(
+                response.payload, ensure_ascii=False, separators=(",", ":")
+            ).encode("utf-8")
+        )
         self.send_response(response.status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
@@ -306,10 +437,24 @@ class IntegrationsRequestHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Solo Empire external app registry API")
-    parser.add_argument("--host", default=os.environ.get("INTEGRATIONS_API_HOST", "127.0.0.1"))
-    parser.add_argument("--port", type=int, default=int(os.environ.get("INTEGRATIONS_API_PORT", os.environ.get("PORT", "3480"))))
-    parser.add_argument("--registry", default=None, help="registry TS file; defaults to INTEGRATIONS_API_REGISTRY_PATH or data/external_app_registry.ts")
+    parser = argparse.ArgumentParser(
+        description="Solo Empire external app registry API"
+    )
+    parser.add_argument(
+        "--host", default=os.environ.get("INTEGRATIONS_API_HOST", "127.0.0.1")
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(
+            os.environ.get("INTEGRATIONS_API_PORT", os.environ.get("PORT", "3480"))
+        ),
+    )
+    parser.add_argument(
+        "--registry",
+        default=None,
+        help="registry TS file; defaults to INTEGRATIONS_API_REGISTRY_PATH or data/external_app_registry.ts",
+    )
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535")
@@ -318,7 +463,9 @@ def main() -> None:
     if not is_loopback(args.host):
         IntegrationsRequestHandler.api.environment = "production"
         if not IntegrationsRequestHandler.api.auth_policy.ready:
-            parser.error("a non-loopback --host requires valid INTEGRATIONS_API_AUTH_* configuration")
+            parser.error(
+                "a non-loopback --host requires valid INTEGRATIONS_API_AUTH_* configuration"
+            )
     server = ThreadingHTTPServer((args.host, args.port), IntegrationsRequestHandler)
     print(f"{SERVICE_NAME} running on http://{args.host}:{args.port}", flush=True)
     try:
